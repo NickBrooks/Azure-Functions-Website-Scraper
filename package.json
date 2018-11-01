@@ -10,6 +10,7 @@
     "license": "MIT",
     "dependencies": {
         "axios": "^0.18.0",
+        "azure-storage": "^2.10.2",
         "unfluff": "^3.2.0"
     }
 }
