@@ -26,18 +26,43 @@ function createTableIfNotExists() {
   });
 }
 
-function getLinkFromTableStorage(partitionKey, rowKey) {
-  createTableIfNotExists();
-  tableService.retrieveEntity(scrapeTable, partitionKey, rowKey, function(
-    error,
-    result
-  ) {
-    if (!error) {
-      return result;
-    }
+function entityToResult(e) {
+  return {
+    ScrapedTime: e.Timestamp._,
+    Link: e.Link._,
+    CanonicalLink: e.CanonicalLink._,
+    Title: e.Title._,
+    SoftTitle: e.SoftTitle._,
+    Description: e.Description._,
+    Lang: e.Lang._,
+    Favicon: e.Favicon._,
+    Image: e.Image._,
+    Date: e.Date._,
+    Copyright: e.Copyright._,
+    Tags: e.Tags._ ? e.Tags._.split(",") : [],
+    Author: e.Author._ ? e.TAuthorags._.split(",") : [],
+    Publisher: e.Publisher._,
+    Videos: e.Videos._ ? e.Videos._.split(",") : [],
+    Text: e.Text._
+  };
+}
 
-    return null;
+async function getLinkFromTableStorage(partitionKey, rowKey) {
+  let promise = new Promise((resolve, reject) => {
+    createTableIfNotExists();
+    tableService.retrieveEntity(scrapeTable, partitionKey, rowKey, function(
+      error,
+      result
+    ) {
+      if (!error) {
+        resolve(entityToResult(result));
+      }
+
+      reject(null);
+    });
   });
+
+  return await promise;
 }
 
 function insertLinkIntoTableStorage(partitionKey, rowKey, link, responseData) {
@@ -59,7 +84,7 @@ function insertLinkIntoTableStorage(partitionKey, rowKey, link, responseData) {
       Date: entGen.DateTime(scraped.date),
       Author: entGen.String(scraped.author.join(",")),
       Copyright: entGen.String(
-        scraped.copyright ? scraped.title.substring(0, 64000) : ""
+        scraped.copyright ? scraped.copyright.substring(0, 64000) : ""
       ),
       Publisher: entGen.String(
         scraped.publisher ? scraped.publisher.substring(0, 64000) : ""
@@ -74,12 +99,12 @@ function insertLinkIntoTableStorage(partitionKey, rowKey, link, responseData) {
         scraped.canonicalLink ? scraped.canonicalLink.substring(0, 64000) : ""
       ),
       Link: entGen.String(link.substring(0, 64000)),
-      Lang: entGen.String(scraped.title),
+      Lang: entGen.String(scraped.lang),
       Description: entGen.String(
         scraped.description ? scraped.description.substring(0, 64000) : ""
       ),
       Favicon: entGen.String(
-        scraped.favicon && scraped.favicon.length < 60000 ? scraped.image : ""
+        scraped.favicon && scraped.favicon.length < 60000 ? scraped.favicon : ""
       )
     };
 
@@ -105,17 +130,16 @@ module.exports = async function(context, req) {
         status: 400,
         body: "Please enter a URL"
       };
+      return;
     }
     // get the partitionKey and rowKey
     const entityKeys = getPartitionAndRowKeys(req.body.url);
 
     // see if link exists first
-    const tsLink = getLinkFromTableStorage(
+    let tsLink = await getLinkFromTableStorage(
       entityKeys.partitionKey,
       entityKeys.rowKey
     );
-
-    console.log(tsLink);
 
     // and return if it does
     if (tsLink) {
@@ -125,6 +149,7 @@ module.exports = async function(context, req) {
           "Content-Type": "application/json"
         }
       };
+      return;
     }
 
     // otherwise let's scrape
@@ -139,10 +164,11 @@ module.exports = async function(context, req) {
         status: 400,
         body: "Error parsing URL."
       };
+      return;
     }
 
     // add to table storage
-    const newTsLink = insertLinkIntoTableStorage(
+    let newTsLink = insertLinkIntoTableStorage(
       entityKeys.partitionKey,
       entityKeys.rowKey,
       req.body.url,
