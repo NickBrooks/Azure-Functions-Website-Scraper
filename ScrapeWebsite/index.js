@@ -28,7 +28,7 @@ function createTableIfNotExists() {
 
 function entityToResult(e) {
   return {
-    ScrapedTime: e.Timestamp._,
+    ScrapedTime: e.Timestamp ? e.Timestamp._ : Date.now(),
     Link: e.Link._,
     CanonicalLink: e.CanonicalLink._,
     Title: e.Title._,
@@ -37,7 +37,7 @@ function entityToResult(e) {
     Lang: e.Lang._,
     Favicon: e.Favicon._,
     Image: e.Image._,
-    Date: e.Date._,
+    Date: e.Date ? e.Date._ : null,
     Copyright: e.Copyright._,
     Tags: e.Tags._ ? e.Tags._.split(",") : [],
     Author: e.Author._ ? e.TAuthorags._.split(",") : [],
@@ -48,7 +48,7 @@ function entityToResult(e) {
 }
 
 async function getLinkFromTableStorage(partitionKey, rowKey) {
-  let promise = new Promise((resolve, reject) => {
+  return new Promise(resolve => {
     createTableIfNotExists();
     tableService.retrieveEntity(scrapeTable, partitionKey, rowKey, function(
       error,
@@ -58,19 +58,25 @@ async function getLinkFromTableStorage(partitionKey, rowKey) {
         resolve(entityToResult(result));
       }
 
-      reject(null);
+      resolve(null);
     });
   });
-
-  return await promise;
 }
 
-function insertLinkIntoTableStorage(partitionKey, rowKey, link, responseData) {
-  try {
+async function insertLinkIntoTableStorage(
+  partitionKey,
+  rowKey,
+  link,
+  responseData
+) {
+  return new Promise(resolve => {
     createTableIfNotExists();
 
     // scrape the html
     const scraped = extractor(responseData);
+    if (!scraped.title && !scraped.softTitle && !scraped.text) {
+      resolve(null);
+    }
 
     const newEntity = {
       PartitionKey: entGen.String(partitionKey),
@@ -81,8 +87,8 @@ function insertLinkIntoTableStorage(partitionKey, rowKey, link, responseData) {
       SoftTitle: entGen.String(
         scraped.softTitle ? scraped.softTitle.substring(0, 60000) : ""
       ),
-      Date: entGen.DateTime(scraped.date),
-      Author: entGen.String(scraped.author.join(",")),
+      Date: entGen.DateTime(scraped.date ? scraped.date : null),
+      Author: entGen.String(scraped.author ? scraped.author.join(",") : ""),
       Copyright: entGen.String(
         scraped.copyright ? scraped.copyright.substring(0, 64000) : ""
       ),
@@ -93,13 +99,13 @@ function insertLinkIntoTableStorage(partitionKey, rowKey, link, responseData) {
       Image: entGen.String(
         scraped.image && scraped.image.length < 60000 ? scraped.image : ""
       ),
-      Tags: entGen.String(scraped.tags.join(",")),
-      Videos: entGen.String(scraped.videos.join(",")),
+      Tags: entGen.String(scraped.tags ? scraped.tags.join(",") : ""),
+      Videos: entGen.String(scraped.videos ? scraped.videos.join(",") : ""),
       CanonicalLink: entGen.String(
         scraped.canonicalLink ? scraped.canonicalLink.substring(0, 64000) : ""
       ),
       Link: entGen.String(link.substring(0, 64000)),
-      Lang: entGen.String(scraped.lang),
+      Lang: entGen.String(scraped.lang ? scraped.lang : ""),
       Description: entGen.String(
         scraped.description ? scraped.description.substring(0, 64000) : ""
       ),
@@ -108,19 +114,14 @@ function insertLinkIntoTableStorage(partitionKey, rowKey, link, responseData) {
       )
     };
 
-    tableService.insertOrReplaceEntity(scrapeTable, newEntity, function(
-      error,
-      result
-    ) {
+    tableService.insertOrReplaceEntity(scrapeTable, newEntity, function(error) {
       if (!error) {
-        return result;
+        resolve(entityToResult(newEntity));
       }
 
-      return null;
+      resolve(null);
     });
-  } catch (error) {
-    console.log(error);
-  }
+  });
 }
 
 module.exports = async function(context, req) {
@@ -128,29 +129,32 @@ module.exports = async function(context, req) {
     if (!req.body || !req.body.url) {
       context.res = {
         status: 400,
-        body: "Please enter a URL"
-      };
-      return;
-    }
-    // get the partitionKey and rowKey
-    const entityKeys = getPartitionAndRowKeys(req.body.url);
-
-    // see if link exists first
-    let tsLink = await getLinkFromTableStorage(
-      entityKeys.partitionKey,
-      entityKeys.rowKey
-    );
-
-    // and return if it does
-    if (tsLink) {
-      context.res = {
-        body: tsLink,
+        body: { error: "Error parsing URL." },
         headers: {
           "Content-Type": "application/json"
         }
       };
-      return;
+      context.done();
     }
+
+    // get the partitionKey and rowKey
+    const entityKeys = getPartitionAndRowKeys(req.body.url);
+
+    // see if link exists first, return if it does
+    await getLinkFromTableStorage(
+      entityKeys.partitionKey,
+      entityKeys.rowKey
+    ).then(entity => {
+      if (entity) {
+        context.res = {
+          body: entity,
+          headers: {
+            "Content-Type": "application/json"
+          }
+        };
+      }
+      context.done();
+    });
 
     // otherwise let's scrape
     let responseData = null;
@@ -162,21 +166,35 @@ module.exports = async function(context, req) {
     if (!responseData) {
       context.res = {
         status: 400,
-        body: "Error parsing URL."
+        body: { error: "Error parsing URL." },
+        headers: {
+          "Content-Type": "application/json"
+        }
       };
-      return;
+      context.done();
     }
 
     // add to table storage
-    let newTsLink = insertLinkIntoTableStorage(
+    await insertLinkIntoTableStorage(
       entityKeys.partitionKey,
       entityKeys.rowKey,
       req.body.url,
       responseData
-    );
+    ).then(entity => {
+      if (entity) {
+        context.res = {
+          body: entity,
+          headers: {
+            "Content-Type": "application/json"
+          }
+        };
+        context.done();
+      }
+    });
 
     context.res = {
-      body: newTsLink,
+      status: 400,
+      body: { error: "Error parsing URL." },
       headers: {
         "Content-Type": "application/json"
       }
