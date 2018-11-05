@@ -5,9 +5,9 @@
   "azureFunctions.deploySubpath": ".",
   "azureFunctions.preDeployTask": "installExtensions",
   "workbench.colorCustomizations": {
-    "titleBar.activeForeground": "#000",
-    "titleBar.inactiveForeground": "#000000CC",
-    "titleBar.activeBackground": "#FFCA28",
-    "titleBar.inactiveBackground": "#FFD54F"
+    "titleBar.activeForeground": "#fff",
+    "titleBar.inactiveForeground": "#fff",
+    "titleBar.activeBackground": "#C2185B",
+    "titleBar.inactiveBackground": "#C2185B"
   }
 }
