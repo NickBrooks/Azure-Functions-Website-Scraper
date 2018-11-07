@@ -6,6 +6,7 @@ const URL = require("url-parse");
 const h2p = require("html2plaintext");
 const moment = require("moment");
 const { randomAgent } = require("./UserAgents");
+const { scrapeWithMetaScraper } = require("./MetaScraper");
 
 // initiate the table service
 const tableService = azure.createTableService();
@@ -22,17 +23,15 @@ function createTableIfNotExists() {
 
 function entityToResult(e) {
   return {
-    ScrapedTime: e.Timestamp ? e.Timestamp._ : Date.now(),
-    Link: e.Link._,
-    CanonicalLink: e.CanonicalLink._,
+    ScrapedTime: e.Timestamp ? e.Timestamp._ : moment(Date.now()),
+    InputUrl: e.InputUrl._,
+    Url: e.Url._,
     Title: e.Title._,
-    SoftTitle: e.SoftTitle._,
     Description: e.Description._,
     Lang: e.Lang._,
-    Favicon: e.Favicon._,
     Image: e.Image._,
+    Logo: e.Logo._,
     Date: e.Date ? e.Date._ : null,
-    Copyright: e.Copyright._,
     Tags: e.Tags._ ? e.Tags._.split(",") : [],
     Author: e.Author._ ? e.Author._.split(",") : [],
     Publisher: e.Publisher._,
@@ -90,14 +89,15 @@ async function getLinkFromTableStorage(partitionKey, rowKey) {
 async function insertLinkIntoTableStorage(
   partitionKey,
   rowKey,
-  link,
+  url,
   responseData
 ) {
-  return new Promise(resolve => {
+  return new Promise(async resolve => {
     createTableIfNotExists();
 
     // scrape the html
     const scraped = extractor(responseData);
+    const meta = await scrapeWithMetaScraper(responseData, url);
     const rawText = h2p(responseData);
     if (!scraped.title && !scraped.softTitle && !text) {
       resolve(null);
@@ -106,36 +106,26 @@ async function insertLinkIntoTableStorage(
     const newEntity = {
       PartitionKey: entGen.String(partitionKey),
       RowKey: entGen.String(rowKey),
-      Title: entGen.String(
-        scraped.title ? scraped.title.substring(0, 60000) : ""
-      ),
-      SoftTitle: entGen.String(
-        scraped.softTitle ? scraped.softTitle.substring(0, 60000) : ""
-      ),
-      Date: entGen.DateTime(moment(scraped.date) ? moment(scraped.date) : null),
-      Author: entGen.String(scraped.author ? scraped.author.join(",") : ""),
-      Copyright: entGen.String(
-        scraped.copyright ? scraped.copyright.substring(0, 64000) : ""
-      ),
+      Title: entGen.String(meta.title ? meta.title.substring(0, 30000) : ""),
+      Date: entGen.DateTime(moment(meta.date) ? moment(meta.date) : null),
+      Author: entGen.String(meta.author ? meta.author : ""),
       Publisher: entGen.String(
-        scraped.publisher ? scraped.publisher.substring(0, 64000) : ""
+        meta.publisher ? meta.publisher.substring(0, 30000) : ""
       ),
-      Text: entGen.String(scraped.text ? scraped.text.substring(0, 60000) : ""),
-      RawText: entGen.String(rawText ? rawText.substring(0, 60000) : ""),
+      Text: entGen.String(scraped.text ? scraped.text.substring(0, 30000) : ""),
+      RawText: entGen.String(rawText ? rawText.substring(0, 30000) : ""),
       Image: entGen.String(
-        scraped.image && scraped.image.length < 60000 ? scraped.image : ""
+        meta.image && meta.image.length < 30000 ? meta.image : ""
+      ),
+      Logo: entGen.String(
+        meta.logo && meta.logo.length < 30000 ? meta.logo : ""
       ),
       Tags: entGen.String(scraped.tags ? scraped.tags.join(",") : ""),
-      CanonicalLink: entGen.String(
-        scraped.canonicalLink ? scraped.canonicalLink.substring(0, 64000) : ""
-      ),
-      Link: entGen.String(link.substring(0, 64000)),
-      Lang: entGen.String(scraped.lang ? scraped.lang : ""),
+      Url: entGen.String(meta.url ? meta.url.substring(0, 30000) : ""),
+      InputUrl: entGen.String(url.substring(0, 30000)),
+      Lang: entGen.String(meta.lang ? meta.lang : ""),
       Description: entGen.String(
-        scraped.description ? scraped.description.substring(0, 64000) : ""
-      ),
-      Favicon: entGen.String(
-        scraped.favicon && scraped.favicon.length < 60000 ? scraped.favicon : ""
+        meta.description ? meta.description.substring(0, 30000) : ""
       )
     };
 
