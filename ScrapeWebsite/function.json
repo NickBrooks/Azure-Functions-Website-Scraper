@@ -6,7 +6,7 @@
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
-      "methods": ["post", "options"],
+      "methods": ["post"],
       "route": "scrape"
     },
     {
