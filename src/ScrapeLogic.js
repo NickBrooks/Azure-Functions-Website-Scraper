@@ -5,15 +5,12 @@ const sha256 = require("sha256");
 const URL = require("url-parse");
 const h2p = require("html2plaintext");
 const moment = require("moment");
+const { randomAgent } = require("./UserAgents");
 
 // initiate the table service
 const tableService = azure.createTableService();
 const scrapeTable = "scrapedlinks";
 const entGen = azure.TableUtilities.entityGenerator;
-
-function sanitizeUrl(url) {
-  return
-}
 
 function createTableIfNotExists() {
   tableService.createTableIfNotExists(scrapeTable, function(error) {
@@ -39,13 +36,21 @@ function entityToResult(e) {
     Tags: e.Tags._ ? e.Tags._.split(",") : [],
     Author: e.Author._ ? e.Author._.split(",") : [],
     Publisher: e.Publisher._,
-    Text: e.Text._
+    Text: e.Text._,
+    RawText: e.RawText._
   };
 }
 
 async function getBodyHTML(url) {
+  const params = {
+    url,
+    headers: {
+      "User-Agent": randomAgent()
+    }
+  };
+
   return new Promise(resolve => {
-    request(url, function(error, response, body) {
+    request(params, function(error, response, body) {
       resolve(body);
     });
   });
@@ -93,7 +98,7 @@ async function insertLinkIntoTableStorage(
 
     // scrape the html
     const scraped = extractor(responseData);
-    const text = scraped.text ? scraped.text : h2p(responseData);
+    const rawText = h2p(responseData);
     if (!scraped.title && !scraped.softTitle && !text) {
       resolve(null);
     }
@@ -115,7 +120,8 @@ async function insertLinkIntoTableStorage(
       Publisher: entGen.String(
         scraped.publisher ? scraped.publisher.substring(0, 64000) : ""
       ),
-      Text: entGen.String(text ? text.substring(0, 60000) : ""),
+      Text: entGen.String(scraped.text ? scraped.text.substring(0, 60000) : ""),
+      RawText: entGen.String(rawText ? rawText.substring(0, 60000) : ""),
       Image: entGen.String(
         scraped.image && scraped.image.length < 60000 ? scraped.image : ""
       ),
