@@ -1,9 +1,9 @@
+const isUrl = require("url-parse");
 const {
   getBodyHTML,
   getLinkFromTableStorage,
   getPartitionAndRowKeys,
-  insertLinkIntoTableStorage,
-  sanitizeUrl
+  insertLinkIntoTableStorage
 } = require("./ScrapeLogic");
 
 async function postRequest(req) {
@@ -11,9 +11,9 @@ async function postRequest(req) {
 
   // check valid url been provided
   if (req.body && req.body.url) {
-    const url = sanitizeUrl(req.body.url);
+    const url = req.body.url;
     // get the partitionKey and rowKey
-    const entityKeys = url ? getPartitionAndRowKeys(url) : null;
+    const entityKeys = isUrl(url) ? getPartitionAndRowKeys(url) : null;
 
     // begin
     if (entityKeys) {

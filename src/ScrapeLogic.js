@@ -4,9 +4,7 @@ const extractor = require("unfluff");
 const sha256 = require("sha256");
 const URL = require("url-parse");
 const h2p = require("html2plaintext");
-const isUrl = require("url-parse");
 const moment = require("moment");
-const { checkProtocol } = require("./Regex");
 
 // initiate the table service
 const tableService = azure.createTableService();
@@ -14,15 +12,7 @@ const scrapeTable = "scrapedlinks";
 const entGen = azure.TableUtilities.entityGenerator;
 
 function sanitizeUrl(url) {
-  if (!checkProtocol.test(url)) {
-    url = "https://" + url;
-  }
-
-  if (!isUrl(url)) {
-    return null;
-  } else {
-    return url;
-  }
+  return
 }
 
 function createTableIfNotExists() {
@@ -157,4 +147,3 @@ module.exports.getBodyHTML = getBodyHTML;
 module.exports.getLinkFromTableStorage = getLinkFromTableStorage;
 module.exports.getPartitionAndRowKeys = getPartitionAndRowKeys;
 module.exports.insertLinkIntoTableStorage = insertLinkIntoTableStorage;
-module.exports.sanitizeUrl = sanitizeUrl;
