@@ -33,7 +33,7 @@ function entityToResult(e) {
     Logo: e.Logo._,
     Date: e.Date ? e.Date._ : null,
     Tags: e.Tags._ ? e.Tags._.split(",") : [],
-    Author: e.Author._ ? e.Author._.split(",") : [],
+    Author: e.Author._,
     Publisher: e.Publisher._,
     Text: e.Text._,
     RawText: e.RawText._
