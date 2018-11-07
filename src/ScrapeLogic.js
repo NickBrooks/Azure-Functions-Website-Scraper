@@ -4,11 +4,26 @@ const extractor = require("unfluff");
 const sha256 = require("sha256");
 const URL = require("url-parse");
 const h2p = require("html2plaintext");
+const isUrl = require("url-parse");
+const moment = require("moment");
+const { checkProtocol } = require("./Regex");
 
 // initiate the table service
 const tableService = azure.createTableService();
 const scrapeTable = "scrapedlinks";
 const entGen = azure.TableUtilities.entityGenerator;
+
+function sanitizeUrl(url) {
+  if (!checkProtocol.test(url)) {
+    url = "https://" + url;
+  }
+
+  if (!isUrl(url)) {
+    return null;
+  } else {
+    return url;
+  }
+}
 
 function createTableIfNotExists() {
   tableService.createTableIfNotExists(scrapeTable, function(error) {
@@ -102,7 +117,7 @@ async function insertLinkIntoTableStorage(
       SoftTitle: entGen.String(
         scraped.softTitle ? scraped.softTitle.substring(0, 60000) : ""
       ),
-      Date: entGen.DateTime(scraped.date ? scraped.date : null),
+      Date: entGen.DateTime(moment(scraped.date) ? moment(scraped.date) : null),
       Author: entGen.String(scraped.author ? scraped.author.join(",") : ""),
       Copyright: entGen.String(
         scraped.copyright ? scraped.copyright.substring(0, 64000) : ""
@@ -133,7 +148,7 @@ async function insertLinkIntoTableStorage(
         resolve(entityToResult(newEntity));
       }
 
-      resolve(null);
+      resolve(error);
     });
   });
 }
@@ -142,3 +157,4 @@ module.exports.getBodyHTML = getBodyHTML;
 module.exports.getLinkFromTableStorage = getLinkFromTableStorage;
 module.exports.getPartitionAndRowKeys = getPartitionAndRowKeys;
 module.exports.insertLinkIntoTableStorage = insertLinkIntoTableStorage;
+module.exports.sanitizeUrl = sanitizeUrl;
