@@ -6,7 +6,7 @@ module.exports = async function(context, req) {
     if (req.method == "OPTIONS") {
       context.res = optionsRequest(req);
     } else {
-      context.rest = await postRequest(req);
+      context.res = await postRequest(req);
     }
   } catch (error) {
     context.res = {
