@@ -21,8 +21,8 @@ function createTableIfNotExists() {
   });
 }
 
-function entityToResult(e) {
-  return {
+function entityToResult(e, fetchText) {
+  let entityResult = {
     ScrapedTime: e.Timestamp ? e.Timestamp._ : moment(Date.now()),
     InputUrl: e.InputUrl._,
     Url: e.Url._,
@@ -34,10 +34,15 @@ function entityToResult(e) {
     Date: e.Date ? e.Date._ : null,
     Tags: e.Tags._ ? e.Tags._.split(",") : [],
     Author: e.Author._,
-    Publisher: e.Publisher._,
-    Text: e.Text._,
-    RawText: e.RawText._
+    Publisher: e.Publisher._
   };
+
+  if (fetchText) {
+    entityResult.Text = e.Text._;
+    entityResult.RawText = e.RawText._;
+  }
+
+  return entityResult;
 }
 
 async function getBodyHTML(url) {
@@ -70,7 +75,7 @@ function getPartitionAndRowKeys(url) {
   };
 }
 
-async function getLinkFromTableStorage(partitionKey, rowKey) {
+async function getLinkFromTableStorage(partitionKey, rowKey, fetchText) {
   return new Promise(resolve => {
     createTableIfNotExists();
     tableService.retrieveEntity(scrapeTable, partitionKey, rowKey, function(
@@ -78,7 +83,7 @@ async function getLinkFromTableStorage(partitionKey, rowKey) {
       result
     ) {
       if (!error) {
-        resolve(entityToResult(result));
+        resolve(entityToResult(result, fetchText));
       }
 
       resolve(null);
@@ -90,7 +95,8 @@ async function insertLinkIntoTableStorage(
   partitionKey,
   rowKey,
   url,
-  responseData
+  responseData,
+  fetchText
 ) {
   return new Promise(async resolve => {
     createTableIfNotExists();
@@ -99,7 +105,7 @@ async function insertLinkIntoTableStorage(
     const scraped = extractor(responseData);
     const meta = await scrapeWithMetaScraper(responseData, url);
     const rawText = h2p(responseData);
-    if (!scraped.title && !scraped.softTitle && !text) {
+    if (!meta.title) {
       resolve(null);
     }
 
@@ -131,7 +137,7 @@ async function insertLinkIntoTableStorage(
 
     tableService.insertOrReplaceEntity(scrapeTable, newEntity, function(error) {
       if (!error) {
-        resolve(entityToResult(newEntity));
+        resolve(entityToResult(newEntity, fetchText));
       }
 
       resolve(error);

@@ -15,12 +15,19 @@ async function postRequest(req) {
     // get the partitionKey and rowKey
     const entityKeys = isUrl(url) ? getPartitionAndRowKeys(url) : null;
 
+    // decide whether to fetch text or not.
+    let fetchText = false;
+    if (req.body.text === true) {
+      fetchText = true;
+    }
+
     // begin
     if (entityKeys) {
       // see if link exists first, return if it does
       await getLinkFromTableStorage(
         entityKeys.partitionKey,
-        entityKeys.rowKey
+        entityKeys.rowKey,
+        fetchText
       ).then(async entity => {
         // if exists, let's return it
         if (entity) {
@@ -34,7 +41,8 @@ async function postRequest(req) {
                 entityKeys.partitionKey,
                 entityKeys.rowKey,
                 url,
-                html
+                html,
+                fetchText
               ).then(entity => {
                 if (entity) {
                   scrapeResult = entity;
