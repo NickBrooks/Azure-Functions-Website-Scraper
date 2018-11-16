@@ -1,9 +1,8 @@
 const isUrl = require("url-parse");
 const {
-  getBodyHTML,
   getLinkFromTableStorage,
   getPartitionAndRowKeys,
-  insertLinkIntoTableStorage
+  scrapeLink
 } = require("./ScrapeLogic");
 
 async function postRequest(req) {
@@ -21,8 +20,13 @@ async function postRequest(req) {
       fetchText = true;
     }
 
-    // begin
-    if (entityKeys) {
+    let skipCache = false;
+    if (req.body.skipCache === true) {
+      skipCache = true;
+    }
+
+    // begin without cache
+    if (entityKeys && !skipCache) {
       // see if link exists first, return if it does
       await getLinkFromTableStorage(
         entityKeys.partitionKey,
@@ -34,24 +38,11 @@ async function postRequest(req) {
           scrapeResult = entity;
           // otherwise let's scrape
         } else {
-          await getBodyHTML(url).then(async html => {
-            if (html) {
-              // add to table storage
-              await insertLinkIntoTableStorage(
-                entityKeys.partitionKey,
-                entityKeys.rowKey,
-                url,
-                html,
-                fetchText
-              ).then(entity => {
-                if (entity) {
-                  scrapeResult = entity;
-                }
-              });
-            }
-          });
+          scrapeResult = await scrapeLink(url, entityKeys, fetchText);
         }
       });
+    } else {
+      scrapeResult = await scrapeLink(url, entityKeys, fetchText);
     }
   }
 

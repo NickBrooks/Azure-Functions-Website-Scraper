@@ -145,7 +145,28 @@ async function insertLinkIntoTableStorage(
   });
 }
 
+async function scrapeLink(url, entityKeys, fetchText) {
+  let scrapeResult = null;
+  await getBodyHTML(url).then(async html => {
+    if (html) {
+      // add to table storage
+      await insertLinkIntoTableStorage(
+        entityKeys.partitionKey,
+        entityKeys.rowKey,
+        url,
+        html,
+        fetchText
+      ).then(entity => {
+        scrapeResult = entity;
+      });
+    }
+  });
+
+  return scrapeResult;
+}
+
 module.exports.getBodyHTML = getBodyHTML;
 module.exports.getLinkFromTableStorage = getLinkFromTableStorage;
 module.exports.getPartitionAndRowKeys = getPartitionAndRowKeys;
 module.exports.insertLinkIntoTableStorage = insertLinkIntoTableStorage;
+module.exports.scrapeLink = scrapeLink;
