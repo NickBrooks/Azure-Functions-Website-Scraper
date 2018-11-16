@@ -29,7 +29,6 @@
     "metascraper-url": "^4.5.5",
     "metascraper-youtube": "^4.5.5",
     "moment": "^2.22.2",
-    "request": "^2.88.0",
     "sha256": "^0.2.0",
     "unfluff": "^3.2.0",
     "url-parse": "^1.4.3"

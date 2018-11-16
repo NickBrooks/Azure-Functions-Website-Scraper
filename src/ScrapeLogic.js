@@ -1,4 +1,4 @@
-const request = require("request");
+const got = require("got");
 const azure = require("azure-storage");
 const extractor = require("unfluff");
 const sha256 = require("sha256");
@@ -47,16 +47,14 @@ function entityToResult(e, fetchText) {
 
 async function getBodyHTML(url) {
   const params = {
-    url,
     headers: {
       "User-Agent": randomAgent()
     }
   };
 
-  return new Promise(resolve => {
-    request(params, function(error, response, body) {
-      resolve(body);
-    });
+  return new Promise(async resolve => {
+    const response = await got(url, params);
+    resolve(response.body);
   });
 }
 
