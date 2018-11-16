@@ -16,6 +16,7 @@
     "azure-storage": "^2.10.2",
     "html2plaintext": "^2.1.0",
     "metascraper": "^4.5.5",
+    "metascraper-amazon": "^4.7.0",
     "metascraper-author": "^4.5.5",
     "metascraper-clearbit-logo": "^4.3.5",
     "metascraper-date": "^4.5.5",
