@@ -13,6 +13,7 @@
   "license": "MIT",
   "dependencies": {
     "@metascraper/helpers": "^4.5.5",
+    "aes256": "^1.0.4",
     "azure-storage": "^2.10.2",
     "html2plaintext": "^2.1.0",
     "metascraper": "^4.5.5",
