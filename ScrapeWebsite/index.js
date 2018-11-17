@@ -1,21 +1,9 @@
 const { postRequest } = require("../src/PostRequest");
-const aes256 = require("aes256");
+const { validate } = require("../src/Auth");
 
 module.exports = async function(context, req) {
   try {
-    const tempKey = req.headers["x-temp-key"];
-    if (!tempKey) {
-      throw "Unauthorized";
-    }
-
-    const decrypted = aes256.decrypt(
-      "LHGebvoencfCTprzeNwyGiT2ejJr8dSEAPTCK2QRjhbOkHl1PhfDLXGvlwyItBWL",
-      req.headers["x-temp-key"]
-    );
-
-    if (!parseInt(decrypted)) {
-      throw "Unauthorized";
-    }
+    const valid = validate(req);
 
     context.res = await postRequest(req);
   } catch (error) {
